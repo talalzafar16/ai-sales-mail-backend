@@ -13,7 +13,10 @@ const extractJson = (data) => {
       throw new Error("Invalid response structure: 'content' is missing.");
     }
     const jsonMatch = data.content.match(/```json\n([\s\S]+?)\n```/);
+    console.log(jsonMatch[1],"jsonMatch")
     if (jsonMatch && jsonMatch[1]) {
+      // let a=jsonMatch.replace(/\n/g, "\\n") // Escape newlines
+      // .replace(/\t/g, "\\t"); // Escape tabs (if any)
       return JSON.parse(jsonMatch[1]);
     }
     throw new Error("No valid JSON found");
@@ -56,15 +59,18 @@ const GenerateEmail = async (req, res) => {
               5. **A professional closing**
             - ${placeholdersString}
 
-            // ### **Expected Output Format (JSON Only)**  
-            // \`\`\`json
-            // {
-            //   "subject": "Generated subject line",
-            //   "body": "Generated email content with placeholders like {{firstName}}",
-            //   "closing": "Best regards, {{senderName}}"
-            // }
-            // \`\`\`
-            
+
+ **Do not use line spaces or breaks; instead, use \n\n for formatting.**  
+
+            ### **Expected Output Format (JSON Only)**  
+            \`\`\`json
+            {
+              "subject": "Generated subject line",
+              "body": "Generated email content with placeholders like {{firstName}}",
+              "closing": "Best regards, {{senderName}}"
+            }
+            \`\`\`
+
             - **No additional explanations or comments.**`,
         },
       ],
@@ -129,8 +135,10 @@ const MakeChangesToEmail = async (req, res) => {
               4. **Call to action**  
               5. **Professional closing**  
             - Ensure the final output **flows naturally** and improves readability.
-            
+             **Do not use line spaces or breaks; instead, use \n\n for formatting.**  
+
             ### **Output Format (JSON Only)**
+         Return **ONLY** a valid JSON object (no code block, no additional text):
             \`\`\`json
             {
               "subject": "Updated subject line",
@@ -139,13 +147,16 @@ const MakeChangesToEmail = async (req, res) => {
             }
             \`\`\`
             
-            - **No additional explanations or comments.**`,
+
+            - **No additional explanations or comments.**
+            - **Do not remove or add any place holder**`,
         },
       ],
     });
 
     // Extract JSON safely
-    const extractedData = extractJson(completion.choices[0]?.message);
+    const extractedData = extractJson(completion.choices[0].message);
+
     if (!extractedData) {
       return res
         .status(500)
