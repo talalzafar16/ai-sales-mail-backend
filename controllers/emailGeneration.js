@@ -66,8 +66,8 @@ const GenerateEmail = async (req, res) => {
             \`\`\`json
             {
               "subject": "Generated subject line",
-              "body": "Generated email content with placeholders like {{firstName}}",
-              "closing": "Best regards, {{senderName}}"
+              "body": "Generated email content with placeholders like {{First Name}}",
+              "closing": "Best regards, {{Sender Name}}"
             }
             \`\`\`
 
