@@ -9,13 +9,13 @@ const {
 
 const router = express.Router();
 
-router.post("/create", CreateTemplate);
-router.get("/total", getTotalTemplates);
+router.post("/create",authMiddleware, CreateTemplate);
+router.get("/total",authMiddleware, getTotalTemplates);
 
-router.get("/getAll/names", GetTemplateNames);
+router.get("/getAll/names",authMiddleware, GetTemplateNames);
 
-router.get("/getById/:id", GetTemplateById);
+router.get("/getById/:id",authMiddleware, GetTemplateById);
 
-router.put("/update/:id", UpdateTemplateById);
+router.put("/update/:id", authMiddleware,UpdateTemplateById);
 
 module.exports = router;

@@ -7,8 +7,8 @@ const {
 
 const router = express.Router();
 
-router.post("/generate", GenerateEmail);
-router.post("/makeChanges", MakeChangesToEmail);
+router.post("/generate",authMiddleware, GenerateEmail);
+router.post("/makeChanges",authMiddleware, MakeChangesToEmail);
 router.get("/emailTracker", TrackEmail);
 
 module.exports = router;
