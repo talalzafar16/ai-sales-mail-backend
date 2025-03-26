@@ -6,6 +6,7 @@ const {
   UpdateTemplateById,
   getTotalTemplates
 } = require("../controllers/templateController");
+const authMiddleware = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
