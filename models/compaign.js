@@ -29,19 +29,14 @@ campaignName: {
       required: true,
     },
     totalEmailSent: {
-      type: String,
+      type: Number,
       required: true,
     },
-    openRate: {
-      type: String,
+    totalEmailOpened: {
+      type: Number,
       required: true,
     },
-    recipients: [
-      {
-        email: { type: String, required: true },
-        name: { type: String },
-      },
-    ],
+    recipients: [],
   },
   { timestamps: true }
 );

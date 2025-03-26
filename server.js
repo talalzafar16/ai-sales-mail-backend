@@ -7,6 +7,7 @@ const templateRoutes = require("./routers/templateRoutes");
 const campaignRoutes = require("./routers/compaignRoutes");
 const cors = require("cors");
 const app = express();
+const morgan = require("morgan");
 
 connectDB();
 
@@ -16,6 +17,7 @@ app.use(
   })
 );
 
+app.use(morgan("dev"));
 app.use(express.json());
 
 app.get("/", (req, res) => res.send("API is running..."));
@@ -27,6 +29,4 @@ app.use("/campaigns", campaignRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-// MONGO_URI=mongodb+srv://salman:4lanHyMRdCrtXDJ7@sign365.nglnioh.mongodb.net/aisalesmail
-// JWT_SECRET=your_jwt_secret_key
-// PORT=3000
+

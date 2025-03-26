@@ -1,10 +1,12 @@
 const OpenAI = require("openai");
+const Campaign = require("../models/compaign");
 
 const client = new OpenAI({
   apiKey:
     "xai-pA9l7Tkegg7TN8mDJE6CBOyLXWRHFLgm9H23qg0ukmlo4QRTx1gUqhMkb66CSDQkdX3FFmgY9A6W2fpH",
   baseURL: "https://api.x.ai/v1",
 });
+
 const extractJson = (data) => {
   try {
     if (!data || !data.content) {
@@ -22,11 +24,15 @@ const extractJson = (data) => {
 };
 const GenerateEmail = async (req, res) => {
   try {
-    const { emailPurpose } = req.body;
+    const { emailPurpose, templatePlaceholders } = req.body;
 
     if (!emailPurpose) {
       return res.status(400).json({ error: "Email purpose is required" });
     }
+
+    const placeholdersString = templatePlaceholders
+      ? `Use ONLY the following placeholders where appropriate: ${templatePlaceholders.join(", ")}.`
+      : "";
 
     const completion = await client.chat.completions.create({
       model: "grok-2-latest",
@@ -48,13 +54,14 @@ const GenerateEmail = async (req, res) => {
               3. **The main message**
               4. **A call to action**
               5. **A professional closing**
+            - ${placeholdersString}
 
             // ### **Expected Output Format (JSON Only)**  
             // \`\`\`json
             // {
             //   "subject": "Generated subject line",
-            //   "body": "Generated email content",
-            //   "closing": "Best regards, [Your Name/Company]"
+            //   "body": "Generated email content with placeholders like {{firstName}}",
+            //   "closing": "Best regards, {{senderName}}"
             // }
             // \`\`\`
             
@@ -62,6 +69,7 @@ const GenerateEmail = async (req, res) => {
         },
       ],
     });
+
     const extractedData = extractJson(completion.choices[0].message);
     return res.json({
       emailContent: extractedData,
@@ -71,6 +79,7 @@ const GenerateEmail = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 const MakeChangesToEmail = async (req, res) => {
   try {
@@ -152,4 +161,54 @@ const MakeChangesToEmail = async (req, res) => {
   }
 };
 
-module.exports = { GenerateEmail, MakeChangesToEmail };
+const TrackEmail = async (req, res) => {
+  const { campaignId, email } = req.query;
+
+  if (!campaignId || !email) {
+    return res.status(400).send("Invalid tracking request");
+  }
+
+  try {
+    const campaign = await Campaign.findOne(
+      { _id: campaignId, "recipients.email": email },
+      { "recipients.$": 1, totalEmailOpened: 1 }
+    );
+
+    if (!campaign || campaign.recipients.length === 0) {
+      return res.status(404).send("Campaign or recipient not found");
+    }
+
+    const recipient = campaign.recipients[0];
+    
+    if (recipient.opened) {
+      return sendTrackingPixel(res);
+    }
+
+    await Campaign.updateOne(
+      { _id: campaignId, "recipients.email": email },
+      {
+        $inc: { totalEmailOpened: 1 },
+        $set: { "recipients.$.opened": true }
+      }
+    );
+
+    return sendTrackingPixel(res);
+  } catch (error) {
+    console.error("Error tracking email open:", error);
+    res.status(500).send("Error tracking email open");
+  }
+};
+
+// Function to send tracking pixel
+const sendTrackingPixel = (res) => {
+  const pixel = Buffer.from(
+    "47494638396101000100800000ffffffffffff21f90401000001002c00000000010001000002024401",
+    "hex"
+  );
+
+  res.setHeader("Content-Type", "image/gif");
+  res.setHeader("Content-Length", pixel.length);
+  return res.end(pixel);
+};
+
+module.exports = { GenerateEmail, MakeChangesToEmail,TrackEmail };

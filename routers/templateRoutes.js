@@ -4,11 +4,13 @@ const {
   GetTemplateById,
   CreateTemplate,
   UpdateTemplateById,
+  getTotalTemplates
 } = require("../controllers/templateController");
 
 const router = express.Router();
 
 router.post("/create", CreateTemplate);
+router.get("/total", getTotalTemplates);
 
 router.get("/getAll/names", GetTemplateNames);
 

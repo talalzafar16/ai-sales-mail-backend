@@ -46,9 +46,24 @@ const GetTemplateNames = async (req, res) => {
       {},
       {
         templateName: 1,
+        templatePurpose:1
       }
     );
     res.status(200).json(templates);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching templates", error: error.message });
+  }
+};
+
+const getTotalTemplates = async (req, res) => {
+
+  try {
+    const total = await EmailTemplate.countDocuments(
+      {}
+    )
+    res.status(200).json({total});
   } catch (error) {
     res
       .status(500)
@@ -120,5 +135,6 @@ module.exports = {
   GetTemplateNames,
   GetTemplateById,
   CreateTemplate,
+  getTotalTemplates,
   UpdateTemplateById,
 };

@@ -1,18 +1,19 @@
 const Campaign = require("../models/compaign");
-const multer = require("multer");
-const xlsx = require("xlsx");
-const fs = require("fs");
+const nodemailer = require("nodemailer");
 
-const upload = multer({ dest: "public/uploads/" }).single("recipientsFile");
+
+
+const transporter = nodemailer.createTransport({
+  service: "gmail", // You can change this to your email provider
+  auth: {
+    user: process.env.EMAIL_USER, // Your email
+    pass: process.env.EMAIL_PASS, // Your email password or app password
+  },
+});
+
+
 
 const createCampaign = async (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) {
-      return res
-        .status(500)
-        .json({ message: "File upload error", error: err.message });
-    }
-
     try {
       const {
         campaignName,
@@ -20,6 +21,7 @@ const createCampaign = async (req, res) => {
         emailTemplateBody,
         emailTemplateSubject,
         emailTemplateClosing,
+        recipients
       } = req.body;
 
       if (
@@ -27,44 +29,57 @@ const createCampaign = async (req, res) => {
         !description ||
         !emailTemplateBody ||
         !emailTemplateSubject ||
-        !emailTemplateClosing
+        !emailTemplateClosing||
+        !recipients
       ) {
         return res
           .status(400)
           .json({ message: "All required fields must be provided" });
       }
-
-      let recipients = [];
-
-      if (req.file) {
-        // Read the uploaded Excel file
-        const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-
-        // Convert sheet to JSON
-        const parsedData = xlsx.utils.sheet_to_json(sheet);
-
-        // Extract recipient details
-        recipients = parsedData.map((row) => ({
-          email: row.Email || row.email,
-          name: row.Name || row.name || "",
-        }));
-
-        // Remove uploaded file after processing
-        fs.unlinkSync(req.file.path);
-      }
-
       const newCampaign = new Campaign({
         campaignName,
         description,
         emailTemplateBody,
         emailTemplateSubject,
         emailTemplateClosing,
-        totalEmailSent: recipients.length.toString(),
-        openRate: "0%", // Initially, open rate is 0%
-        recipients,
+        totalEmailSent: recipients.length,
+        totalEmailOpened: 0,
+        recipients : recipients.map(e => ({ ...e, opened: false }))
       });
+      let columns=Object.keys(recipients[0])
+      for (const recipient of recipients) {
+        let subject = emailTemplateSubject;
+        let body = emailTemplateBody;
+        let closing = emailTemplateClosing;
+      
+        columns.forEach((key) => {
+          subject = subject.replace(new RegExp(`{{${key}}}`, "g"), recipient[key]);
+          body = body.replace(new RegExp(`{{${key}}}`, "g"), recipient[key]);
+          closing = closing.replace(new RegExp(`{{${key}}}`, "g"), recipient[key]);
+        });
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: recipient.email, 
+          subject: subject,
+          html: `
+            <p>${body}</p>
+            <p>${closing}</p>
+            <img src="${process.env.SERVER_URL}/email/emailTracker?campaignId=${newCampaign._id}&email=${encodeURIComponent(recipient.email)}" width="1" height="1" style="display:none;" />
+          `,
+        };
+  
+        console.log(mailOptions,"mail")
+      await transporter.sendMail(mailOptions, (err, info) => {
+          if (err) {
+            console.error(`Error sending email to ${recipient}:`, err.message);
+          } else {
+            console.log(`Email sent to ${recipient}:`, info.response);
+          }
+        });
+      }
+  
+
+      
 
       await newCampaign.save();
       res.status(201).json({
@@ -76,11 +91,15 @@ const createCampaign = async (req, res) => {
         .status(500)
         .json({ message: "Error creating campaign", error: error.message });
     }
-  });
 };
 
 const getAllCampaigns = async (req, res) => {
+  let {page,limit=10}=req.query
+  let offset=(page-1)*limit
   try {
+    const total = await Campaign.countDocuments(
+      {}
+    )
     const campaigns = await Campaign.find(
       {},
       {
@@ -88,10 +107,12 @@ const getAllCampaigns = async (req, res) => {
         description: 1,
         status: 1,
         totalEmailSent: 1,
-        openRate: 1,
+        totalEmailOpened: 1,
       }
-    );
-    res.status(200).json(campaigns);
+    ).limit(limit).skip(offset)
+    
+    ;
+    res.status(200).json({campaigns,total});
   } catch (error) {
     res
       .status(500)
@@ -116,4 +137,33 @@ const getCampaignById = async (req, res) => {
   }
 };
 
-module.exports = { createCampaign, getAllCampaigns, getCampaignById };
+const getTotalCampaigns = async (req, res) => {
+  try {
+    const totalCampaigns = await Campaign.countDocuments({});
+    
+
+    const stats = await Campaign.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalEmailsSent: { $sum: "$totalEmailSent"  },
+          totalOpened: { $sum:  "$totalEmailOpened"  },
+        },
+      },
+    ]);
+    console.log(stats,"stats")
+    const totalEmailsSent = stats[0]?.totalEmailsSent || 0;
+    const totalOpened = stats[0]?.totalOpened || 0;
+
+    res.status(200).json({ totalCampaigns, totalEmailsSent, totalOpened });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching campaign statistics",
+      error: error.message,
+    });
+  }
+};
+
+
+
+module.exports = { createCampaign, getAllCampaigns, getCampaignById,getTotalCampaigns };
