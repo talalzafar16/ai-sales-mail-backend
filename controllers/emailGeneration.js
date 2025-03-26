@@ -179,18 +179,21 @@ const TrackEmail = async (req, res) => {
     }
 
     const recipient = campaign.recipients[0];
-    
-    if (recipient.opened) {
-      return sendTrackingPixel(res);
-    }
 
-    await Campaign.updateOne(
-      { _id: campaignId, "recipients.email": email },
-      {
-        $inc: { totalEmailOpened: 1 },
-        $set: { "recipients.$.opened": true }
-      }
-    );
+    const updateQuery = {
+      $inc: { "recipients.$.opened": 1 }
+    };
+
+    if (recipient.opened === 1) { 
+      updateQuery.$inc.totalEmailOpened = 1;
+    }
+    
+    if (recipient.opened < 2) { 
+      await Campaign.updateOne(
+        { _id: campaignId, "recipients.email": email },
+        updateQuery
+      );
+    }
 
     return sendTrackingPixel(res);
   } catch (error) {
@@ -198,6 +201,7 @@ const TrackEmail = async (req, res) => {
     res.status(500).send("Error tracking email open");
   }
 };
+
 
 // Function to send tracking pixel
 const sendTrackingPixel = (res) => {

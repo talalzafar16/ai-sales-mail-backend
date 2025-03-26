@@ -44,7 +44,7 @@ const createCampaign = async (req, res) => {
         emailTemplateClosing,
         totalEmailSent: recipients.length,
         totalEmailOpened: 0,
-        recipients : recipients.map(e => ({ ...e, opened: false }))
+        recipients : recipients.map(e => ({ ...e, opened: 0 }))
       });
       let columns=Object.keys(recipients[0])
       for (const recipient of recipients) {
