@@ -47,7 +47,9 @@ const createCampaign = async (req, res) => {
         recipients : recipients.map(e => ({ ...e, opened: 0 }))
       });
       let columns=Object.keys(recipients[0])
-      let subject = emailTemplateSubject;
+      
+      for (const recipient of recipients) {
+        let subject = emailTemplateSubject;
         let body = emailTemplateBody;
         let closing = emailTemplateClosing;
         subject = subject.replace(/(?<=\S)}}/g, "}} ");
@@ -56,8 +58,6 @@ body = body.replace(/(?<=\S)}}/g, "}} ");
 body = body.replace(/{{(?=\S)/g, " {{"); 
 closing = closing.replace(/(?<=\S)}}/g, "}} ");
 closing = closing.replace(/{{(?=\S)/g, " {{"); 
-      for (const recipient of recipients) {
-       
         columns.forEach((key) => {
           if (recipient[key]) {
             let regex = new RegExp(`{{${key.trim()}}}`, "g");
