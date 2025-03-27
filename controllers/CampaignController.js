@@ -50,9 +50,12 @@ const createCampaign = async (req, res) => {
       let subject = emailTemplateSubject;
         let body = emailTemplateBody;
         let closing = emailTemplateClosing;
-        subject = subject.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
-        body = body.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
-        closing = closing.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
+        subject = subject.replace(/(?<=\S)}}/g, " }} ");
+subject = subject.replace(/{{(?=\S)/g, " {{ "); 
+body = body.replace(/(?<=\S)}}/g, " }} ");
+body = body.replace(/{{(?=\S)/g, " {{ "); 
+closing = closing.replace(/(?<=\S)}}/g, " }} ");
+closing = closing.replace(/{{(?=\S)/g, " {{ "); 
       for (const recipient of recipients) {
         
         columns.forEach((key) => {
