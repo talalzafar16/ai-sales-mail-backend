@@ -60,7 +60,7 @@ closing = closing.replace(/{{(?=\S)/g, " {{");
        
         columns.forEach((key) => {
           if (recipient[key]) {
-            let regex = new RegExp(`{{${key}}}`, "g");
+            let regex = new RegExp(`{{${key.trim()}}}`, "g");
             subject = subject.replace(regex, recipient[key]);
             body = body.replace(regex, recipient[key]);
             closing = closing.replace(regex, recipient[key]);
