@@ -57,11 +57,14 @@ body = body.replace(/{{(?=\S)/g, " {{");
 closing = closing.replace(/(?<=\S)}}/g, "}} ");
 closing = closing.replace(/{{(?=\S)/g, " {{"); 
       for (const recipient of recipients) {
-        
+       
         columns.forEach((key) => {
-          subject = subject.replace(new RegExp(`\\s*{{${key}}}\\s*`, "g"), recipient[key]);
-          body = body.replace(new RegExp(`\\s*{{${key}}}\\s*`, "g"), recipient[key]);
-          closing = closing.replace(new RegExp(`\\s*{{${key}}}\\s*`, "g"), recipient[key]);
+          if (recipient[key]) {
+            let regex = new RegExp(`{{${key}}}`, "g");
+            subject = subject.replace(regex, recipient[key]);
+            body = body.replace(regex, recipient[key]);
+            closing = closing.replace(regex, recipient[key]);
+          }
         });
         const mailOptions = {
           from: process.env.EMAIL_USER,
