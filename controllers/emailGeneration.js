@@ -70,7 +70,7 @@ const GenerateEmail = async (req, res) => {
               "closing": "Best regards, {{Sender Name}}"
             }
             \`\`\`
-
+            DO NOT USE ANY SPECIAL CHARACTER DIRECTLY AFTER ANY PLACEHOLDER. ADD SAPCE THEN USE SPECIAL CHARACTER
             - **No additional explanations or comments.**`,
         },
       ],
@@ -147,7 +147,7 @@ const MakeChangesToEmail = async (req, res) => {
             }
             \`\`\`
             
-
+            DO NOT USE ANY SPECIAL CHARACTER DIRECTLY AFTER ANY PLACEHOLDER. ADD SAPCE THEN USE SPECIAL CHARACTER
             - **No additional explanations or comments.**
             - **Do not remove or add any place holder**`,
         },
