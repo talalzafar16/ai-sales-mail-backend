@@ -47,11 +47,14 @@ const createCampaign = async (req, res) => {
         recipients : recipients.map(e => ({ ...e, opened: 0 }))
       });
       let columns=Object.keys(recipients[0])
-      for (const recipient of recipients) {
-        let subject = emailTemplateSubject;
+      let subject = emailTemplateSubject;
         let body = emailTemplateBody;
         let closing = emailTemplateClosing;
-      
+        subject = subject.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
+        body = body.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
+        closing = closing.replace(/(?<=\S)}}(?=\S)/g, " }} "); 
+      for (const recipient of recipients) {
+        
         columns.forEach((key) => {
           subject = subject.replace(new RegExp(`{{${key}}}`, "g"), recipient[key]);
           body = body.replace(new RegExp(`{{${key}}}`, "g"), recipient[key]);
@@ -62,8 +65,8 @@ const createCampaign = async (req, res) => {
           to: recipient.email, 
           subject: subject,
           html: `
-            <p>${body}</p>
-            <p>${closing}</p>
+            <p>${body.replace(/\n/g, "<br/>")}</p> 
+    <p>${closing.replace(/\n/g, "<br/>")}</p>
             <img src="${process.env.SERVER_URL}/email/emailTracker?campaignId=${newCampaign._id}&email=${encodeURIComponent(recipient.email)}" width="1" height="1" style="display:none;" />
           `,
         };
@@ -109,7 +112,7 @@ const getAllCampaigns = async (req, res) => {
         totalEmailSent: 1,
         totalEmailOpened: 1,
       }
-    ).limit(limit).skip(offset)
+    ).sort({ createdAt: -1 }).limit(limit).skip(offset)
     
     ;
     res.status(200).json({campaigns,total});
