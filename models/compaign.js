@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const campaignSchema = new mongoose.Schema(
   {
-campaignName: {
+    campaignName: {
       type: String,
       required: true,
       trim: true,
@@ -15,6 +15,11 @@ campaignName: {
       type: String,
       enum: ["draft", "sent"],
       default: "sent",
+    },
+
+    isAutomatedReply: {
+      type: Boolean,
+      default: false,
     },
     emailTemplateBody: {
       type: String,
@@ -33,6 +38,10 @@ campaignName: {
       required: true,
     },
     totalEmailOpened: {
+      type: Number,
+      required: true,
+    },
+    totalEmailReplied: {
       type: Number,
       required: true,
     },

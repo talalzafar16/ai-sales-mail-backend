@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const Campaign = require("../models/compaign");
+const compaign = require("../models/compaign");
 
 const client = new OpenAI({
   apiKey:
@@ -13,7 +14,7 @@ const extractJson = (data) => {
       throw new Error("Invalid response structure: 'content' is missing.");
     }
     const jsonMatch = data.content.match(/```json\n([\s\S]+?)\n```/);
-    console.log(jsonMatch[1],"jsonMatch")
+    console.log(jsonMatch[1], "jsonMatch");
     if (jsonMatch && jsonMatch[1]) {
       // let a=jsonMatch.replace(/\n/g, "\\n") // Escape newlines
       // .replace(/\t/g, "\\t"); // Escape tabs (if any)
@@ -34,7 +35,9 @@ const GenerateEmail = async (req, res) => {
     }
 
     const placeholdersString = templatePlaceholders
-      ? `Use ONLY the following placeholders where appropriate: ${templatePlaceholders.join(", ")}.`
+      ? `Use ONLY the following placeholders where appropriate: ${templatePlaceholders.join(
+          ", "
+        )}.`
       : "";
 
     const completion = await client.chat.completions.create({
@@ -85,7 +88,67 @@ const GenerateEmail = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+const GenerateAutomatedEmail = async (req, res) => {
+  try {
+    const { compaignId } = req.body;
 
+    if (!compaignId) {
+      return res.status(400).json({ error: "compaignId is required" });
+    }
+    const compaignData = await compaign.findById(compaignId);
+    console.log(compaignData);
+
+    const completion = await client.chat.completions.create({
+      model: "grok-2-latest",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert email marketing assistant. Your task is to generate professional, engaging, and personalized automated email replies based on the given campaign data.",
+        },
+        {
+          role: "user",
+          content: `Generate an automated reply email template for the given campaign. The reply should acknowledge the client's response professionally and maintain engagement. 
+    
+    - **Ensure the tone matches the context** (formal/casual).  
+    - **Structure the email properly**:
+      1. **A relevant subject line**  
+      2. **An engaging opening that acknowledges the client's response**  
+      3. **A concise main message**  
+      4. **A clear call to action (if needed)**  
+      5. **A professional closing**  
+        
+       Email Subject  : ${compaignData.emailTemplateSubject}
+       Email Body  : ${compaignData.emailTemplateBody}
+       Email Closing  : ${compaignData.emailTemplateClosing}
+    This is the template to which we reciewv the email reply from client now we want a general automated reply for customer email
+
+          use place holders only used in above give email tenplate 
+    - **Use \\n\\n instead of line breaks for formatting.**  
+    
+    ### **Expected Output Format (JSON Only)**
+    \`\`\`json
+    {
+      "subject": "Generated subject line",
+      "body": "Generated email content with placeholder",
+      "closing": "Best regards, {{Sender Name}}"
+    }
+    \`\`\`
+    
+    - **No additional explanations or comments.**`,
+        },
+      ],
+    });
+
+    const extractedData = extractJson(completion.choices[0].message);
+    return res.json({
+      emailContent: extractedData,
+    });
+  } catch (error) {
+    console.error("Error fetching response from Grok:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 const MakeChangesToEmail = async (req, res) => {
   try {
@@ -192,14 +255,14 @@ const TrackEmail = async (req, res) => {
     const recipient = campaign.recipients[0];
 
     const updateQuery = {
-      $inc: { "recipients.$.opened": 1 }
+      $inc: { "recipients.$.opened": 1 },
     };
 
-    if (recipient.opened === 1) { 
+    if (recipient.opened === 1) {
       updateQuery.$inc.totalEmailOpened = 1;
     }
-    
-    if (recipient.opened < 2) { 
+
+    if (recipient.opened < 2) {
       await Campaign.updateOne(
         { _id: campaignId, "recipients.email": email },
         updateQuery
@@ -213,7 +276,6 @@ const TrackEmail = async (req, res) => {
   }
 };
 
-
 // Function to send tracking pixel
 const sendTrackingPixel = (res) => {
   const pixel = Buffer.from(
@@ -226,4 +288,9 @@ const sendTrackingPixel = (res) => {
   return res.end(pixel);
 };
 
-module.exports = { GenerateEmail, MakeChangesToEmail,TrackEmail };
+module.exports = {
+  GenerateEmail,
+  MakeChangesToEmail,
+  TrackEmail,
+  GenerateAutomatedEmail,
+};
