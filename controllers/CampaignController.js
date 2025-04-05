@@ -205,7 +205,6 @@ const checkEmails = async () => {
       markSeen: false,
     };
     const messages = await connection.search(searchCriteria, fetchOptions);
-    console.log(messages, "messages");
     for (const item of messages) {
       const all = item.parts.find((part) => part.which === "");
       const parsed = await simpleParser(all.body);
@@ -219,40 +218,63 @@ const checkEmails = async () => {
         .split("?")[1]
         .split("&")[0]
         .split("=")[1];
-      const subject = parsed.subject.split("Re: ")[1];
-      console.log(
-        `New reply from: ${email[1]} | Subject: ${subject}----------${comapigId}`
-      );
       const campaign = await Campaign.find({
         _id: comapigId,
         "recipients.email": email[1],
       });
-      console.log(campaign);
+      await Campaign.findOneAndUpdate(
+        { _id: comapigId, "recipients.email": email[1] },
+        {
+          $set: { "recipients.$.replied": 1 },
+          $inc: { totalEmailReplied: 1 }  
+        }
+      );
+      let reciepntData=campaign[0].recipients.filter((e)=>e.email==email[1])
       if (campaign && campaign[0]?.isAutomatedReply) {
         const automatedReply = await automatedReplyEmail.findOne({
           campaignId: comapigId,
         });
-        console.log(campaign, automatedReply);
-      }
-      // Find matching email in stored records
-      // const originalSubject = parsed.subject.replace("Re: ", "").trim();
-      // const sentEmail = data.sentEmails.find(
-      //   (e) => e.email === parsed.from.text && e.subject === originalSubject
-      // );
 
-      // if (!sentEmail) continue; // Ignore if not a reply to your sent email
-      // if (!data.campaigns[sentEmail.campaign]) continue; // Ignore if campaign does not support auto-reply
-
-      // // Send automated response
-      // const mailOptions = {
-      //   from: process.env.EMAIL_USER,
-      //   to: parsed.from.text,
-      //   subject: "Re: " + originalSubject,
-      //   text: "Thank you for your reply! We will get back to you soon.",
-      // };
-
-      // await transporter.sendMail(mailOptions);
-      // console.log(`Auto-reply sent to: ${parsed.from.text}`);
+        let subject = automatedReply.emailTemplateSubject;
+      let body = automatedReply.emailTemplateBody;
+      let closing = automatedReply.emailTemplateClosing;
+      subject = subject.replace(/(?<=\S)}}/g, "}} ");
+      subject = subject.replace(/{{(?=\S)/g, " {{");
+      body = body.replace(/(?<=\S)}}/g, "}} ");
+      body = body.replace(/{{(?=\S)/g, " {{");
+      closing = closing.replace(/(?<=\S)}}/g, "}} ");
+      closing = closing.replace(/{{(?=\S)/g, " {{");
+      Object.keys(reciepntData[0]).forEach((key) => {
+        if (reciepntData[0][key]) {
+          let regex = new RegExp(`{{${key.trim()}}}`, "g");
+          subject = subject.replace(regex, reciepntData[0][key]);
+          body = body.replace(regex, reciepntData[0][key]);
+          closing = closing.replace(regex, reciepntData[0][key]);
+        }
+      });
+      
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: reciepntData[0].email,
+        replyTo: reciepntData[0].email, 
+        subject: `Re: ${subject}`,
+        html: `
+          <p>${body.replace(/\n/g, "<br/>")}</p>
+          <p>${closing.replace(/\n/g, "<br/>")}</p>
+          <br/>
+          <blockquote>${parsed.text}</blockquote> <!-- Include original email -->
+        `,
+        inReplyTo: parsed.messageId, 
+        references: parsed.references || parsed.messageId,
+      };
+      await transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          console.error(`Error sending email to ${recipient}:`, err.message);
+        } else {
+          console.log(`Email sent to ${recipient}:`, info.response);
+        }
+      });
+    }
     }
 
     connection.end();
@@ -261,8 +283,7 @@ const checkEmails = async () => {
   }
 };
 
-setInterval(checkEmails, 10000);
-
+setInterval(checkEmails, 300000);
 module.exports = {
   createCampaign,
   getAllCampaigns,
