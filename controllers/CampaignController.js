@@ -280,9 +280,7 @@ const checkForFollowUps = async () => {
   try {
     console.log("checking follow up")
     let TodaysDate = new Date();
-    let TomorrowDate = new Date(TodaysDate);
-TomorrowDate.setDate(TomorrowDate.getDate() + 1);
-
+  
     let comps = await Campaign.find({ hasFollowUp: true });
     for (const item of comps) {
       if (item.hasFollowUp) {
@@ -293,9 +291,7 @@ TomorrowDate.setDate(TomorrowDate.getDate() + 1);
         let followUpDate = new Date(firstRecipientUpdatedAt);
         followUpDate.setDate(followUpDate.getDate() + duration);
 
-        if (TomorrowDate.toDateString() === followUpDate.toDateString()) {
-          
-          
+        if (TodaysDate.toDateString() === followUpDate.toDateString()) {
           let emailSent = false;
           for (const recep of item.recipients) {
             if (recep.replied == 0) {
@@ -341,7 +337,7 @@ TomorrowDate.setDate(TomorrowDate.getDate() + 1);
               { _id: item._id },
               {
                 $set: {
-                  "recipients.$[].updatedAt": TomorrowDate, // Update all recipients' updatedAt
+                  "recipients.$[].updatedAt": TodaysDate, // Update all recipients' updatedAt
                 },
               }
             );
