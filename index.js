@@ -6,6 +6,7 @@ const emailRoutes = require("./routers/emailRoutes");
 const templateRoutes = require("./routers/templateRoutes");
 const campaignRoutes = require("./routers/compaignRoutes");
 const automatedEmailRoutes = require("./routers/AutomatedReply");
+const FollowUpRoutes = require("./routers/FollowUpRoutes");
 const cors = require("cors");
 const app = express();
 const morgan = require("morgan");
@@ -29,6 +30,7 @@ app.use("/email", emailRoutes);
 app.use("/templates", templateRoutes);
 app.use("/campaigns", campaignRoutes);
 app.use("/automated-reply", automatedEmailRoutes);
+app.use("/follow-up", FollowUpRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

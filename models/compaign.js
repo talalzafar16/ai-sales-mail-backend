@@ -17,6 +17,14 @@ const campaignSchema = new mongoose.Schema(
       default: "sent",
     },
 
+    hasFollowUp: {
+      type: Boolean,
+      default: false,
+    },
+    followUpDuration: {
+      type: Number,
+      default: null,
+    },
     isAutomatedReply: {
       type: Boolean,
       default: false,

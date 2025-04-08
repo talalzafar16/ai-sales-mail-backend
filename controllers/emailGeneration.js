@@ -149,6 +149,67 @@ const GenerateAutomatedEmail = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+const GenerateAutomatedFollowUpEmail = async (req, res) => {
+  try {
+    const { compaignId } = req.body;
+
+    if (!compaignId) {
+      return res.status(400).json({ error: "campaignId is required" });
+    }
+
+    const campaignData = await Campaign.findById(compaignId);
+
+    const completion = await client.chat.completions.create({
+      model: "grok-2-latest",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert email marketing assistant. Your task is to generate professional, engaging, and personalized follow-up email templates based on the given campaign data.",
+        },
+        {
+          role: "user",
+          content: `Generate a follow-up email template for the given campaign. The email should politely re-engage the recipient, remind them of the previous interaction, and encourage a response or action.
+    
+    - **Ensure the tone matches the context** (formal/casual).  
+    - **Structure the email properly**:
+      1. **A compelling subject line**  
+      2. **A warm opening that references the previous email or interaction**  
+      3. **A concise main message reinforcing the value proposition**  
+      4. **A clear call to action (if applicable)**  
+      5. **A professional closing**  
+        
+       Email Subject  : ${campaignData.emailTemplateSubject}
+       Email Body  : ${campaignData.emailTemplateBody}
+       Email Closing  : ${campaignData.emailTemplateClosing}
+      
+    - **Use placeholders found in the given email template**  
+    - **Use \\n\\n instead of line breaks for formatting.**  
+
+    ### **Expected Output Format (JSON Only)**
+    \`\`\`json
+    {
+      "subject": "Generated follow-up subject line",
+      "body": "Generated follow-up email content with placeholders",
+      "closing": "Best regards, {{Sender Name}}"
+    }
+    \`\`\`
+    
+    - **No additional explanations or comments.**`,
+        },
+      ],
+    });
+
+    const extractedData = extractJson(completion.choices[0].message);
+    return res.json({
+      emailContent: extractedData,
+    });
+  } catch (error) {
+    console.error("Error fetching response from Grok:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 
 const MakeChangesToEmail = async (req, res) => {
   try {
@@ -293,4 +354,5 @@ module.exports = {
   MakeChangesToEmail,
   TrackEmail,
   GenerateAutomatedEmail,
+  GenerateAutomatedFollowUpEmail
 };

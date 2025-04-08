@@ -1,10 +1,10 @@
 const Campaign = require("../models/compaign");
 const nodemailer = require("nodemailer");
 const Imap = require("imap-simple");
-const fs = require("fs");
 const { simpleParser } = require("mailparser");
 const compaign = require("../models/compaign");
 const automatedReplyEmail = require("../models/automatedReplyEmail");
+const FollowUpEmailTemplate = require("../models/FollowUpEmail");
 
 const transporter = nodemailer.createTransport({
   service: "gmail", // You can change this to your email provider
@@ -63,6 +63,8 @@ const createCampaign = async (req, res) => {
         email: e.email.toLowerCase(),
         opened: 0,
         replied: 0,
+        sentAt: new Date(),
+        updatedAt: new Date(),
       })),
     });
     let columns = Object.keys(recipients[0]);
@@ -101,13 +103,7 @@ const createCampaign = async (req, res) => {
       };
 
       console.log(mailOptions, "mail");
-      await transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          console.error(`Error sending email to ${recipient}:`, err.message);
-        } else {
-          console.log(`Email sent to ${recipient}:`, info.response);
-        }
-      });
+      await transporter.sendMail(mailOptions);
     }
 
     await newCampaign.save();
@@ -134,6 +130,8 @@ const getAllCampaigns = async (req, res) => {
         description: 1,
         isAutomatedReply: 1,
         status: 1,
+        hasFollowUp: 1,
+        followUpDuration: 1,
         totalEmailSent: 1,
         totalEmailOpened: 1,
       }
@@ -202,7 +200,7 @@ const checkEmails = async () => {
 
     const fetchOptions = {
       bodies: "",
-      markSeen: false,
+      markSeen: true,
     };
     const messages = await connection.search(searchCriteria, fetchOptions);
     for (const item of messages) {
@@ -226,55 +224,50 @@ const checkEmails = async () => {
         { _id: comapigId, "recipients.email": email[1] },
         {
           $set: { "recipients.$.replied": 1 },
-          $inc: { totalEmailReplied: 1 }  
+          $inc: { totalEmailReplied: 1 },
         }
       );
-      let reciepntData=campaign[0].recipients.filter((e)=>e.email==email[1])
+      let reciepntData = campaign[0].recipients.filter(
+        (e) => e.email == email[1]
+      );
       if (campaign && campaign[0]?.isAutomatedReply) {
         const automatedReply = await automatedReplyEmail.findOne({
           campaignId: comapigId,
         });
 
         let subject = automatedReply.emailTemplateSubject;
-      let body = automatedReply.emailTemplateBody;
-      let closing = automatedReply.emailTemplateClosing;
-      subject = subject.replace(/(?<=\S)}}/g, "}} ");
-      subject = subject.replace(/{{(?=\S)/g, " {{");
-      body = body.replace(/(?<=\S)}}/g, "}} ");
-      body = body.replace(/{{(?=\S)/g, " {{");
-      closing = closing.replace(/(?<=\S)}}/g, "}} ");
-      closing = closing.replace(/{{(?=\S)/g, " {{");
-      Object.keys(reciepntData[0]).forEach((key) => {
-        if (reciepntData[0][key]) {
-          let regex = new RegExp(`{{${key.trim()}}}`, "g");
-          subject = subject.replace(regex, reciepntData[0][key]);
-          body = body.replace(regex, reciepntData[0][key]);
-          closing = closing.replace(regex, reciepntData[0][key]);
-        }
-      });
-      
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: reciepntData[0].email,
-        replyTo: reciepntData[0].email, 
-        subject: `Re: ${subject}`,
-        html: `
+        let body = automatedReply.emailTemplateBody;
+        let closing = automatedReply.emailTemplateClosing;
+        subject = subject.replace(/(?<=\S)}}/g, "}} ");
+        subject = subject.replace(/{{(?=\S)/g, " {{");
+        body = body.replace(/(?<=\S)}}/g, "}} ");
+        body = body.replace(/{{(?=\S)/g, " {{");
+        closing = closing.replace(/(?<=\S)}}/g, "}} ");
+        closing = closing.replace(/{{(?=\S)/g, " {{");
+        Object.keys(reciepntData[0]).forEach((key) => {
+          if (reciepntData[0][key]) {
+            let regex = new RegExp(`{{${key.trim()}}}`, "g");
+            subject = subject.replace(regex, reciepntData[0][key]);
+            body = body.replace(regex, reciepntData[0][key]);
+            closing = closing.replace(regex, reciepntData[0][key]);
+          }
+        });
+
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: reciepntData[0].email,
+          replyTo: reciepntData[0].email,
+          subject: `Re: ${subject}`,
+          html: `
           <p>${body.replace(/\n/g, "<br/>")}</p>
           <p>${closing.replace(/\n/g, "<br/>")}</p>
           <br/>
-          <blockquote>${parsed.text}</blockquote> <!-- Include original email -->
         `,
-        inReplyTo: parsed.messageId, 
-        references: parsed.references || parsed.messageId,
-      };
-      await transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          console.error(`Error sending email to ${recipient}:`, err.message);
-        } else {
-          console.log(`Email sent to ${recipient}:`, info.response);
-        }
-      });
-    }
+          inReplyTo: parsed.messageId,
+          references: parsed.references || parsed.messageId,
+        };
+        await transporter.sendMail(mailOptions);
+      }
     }
 
     connection.end();
@@ -283,7 +276,90 @@ const checkEmails = async () => {
   }
 };
 
-setInterval(checkEmails, 300000);
+const checkForFollowUps = async () => {
+  try {
+    console.log("checking follow up")
+    let TodaysDate = new Date();
+    let TomorrowDate = new Date(TodaysDate);
+TomorrowDate.setDate(TomorrowDate.getDate() + 1);
+
+    let comps = await Campaign.find({ hasFollowUp: true });
+    for (const item of comps) {
+      if (item.hasFollowUp) {
+        let duration = item.followUpDuration;
+        let firstRecipientUpdatedAt = new Date(item.recipients[0].updatedAt);
+
+        // Calculate the follow-up date
+        let followUpDate = new Date(firstRecipientUpdatedAt);
+        followUpDate.setDate(followUpDate.getDate() + duration);
+
+        if (TomorrowDate.toDateString() === followUpDate.toDateString()) {
+          
+          
+          let emailSent = false;
+          for (const recep of item.recipients) {
+            if (recep.replied == 0) {
+              const FollowUpTemp = await FollowUpEmailTemplate.findOne({
+                campaignId: item._id,
+              });
+              if (!FollowUpTemp) continue;
+              let subject = FollowUpTemp.emailTemplateSubject;
+              let body = FollowUpTemp.emailTemplateBody;
+              let closing = FollowUpTemp.emailTemplateClosing;
+              subject = subject.replace(/(?<=\S)}}/g, "}} ");
+              subject = subject.replace(/{{(?=\S)/g, " {{");
+              body = body.replace(/(?<=\S)}}/g, "}} ");
+              body = body.replace(/{{(?=\S)/g, " {{");
+              closing = closing.replace(/(?<=\S)}}/g, "}} ");
+              closing = closing.replace(/{{(?=\S)/g, " {{");
+              Object.keys(recep).forEach((key) => {
+                    if (recep[key]) {
+                      let regex = new RegExp(`{{${key.trim()}}}`, "g");
+                      subject = subject.replace(regex, recep[key]);
+                      body = body.replace(regex, recep[key]);
+                      closing = closing.replace(regex, recep[key]);
+                    }
+                  });
+            
+                  const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: recep.email,
+                    subject: subject,
+                    html: `
+                      <p>${body.replace(/\n/g, "<br/>")}</p>
+                      <p>${closing.replace(/\n/g, "<br/>")}</p>
+                      <br/>
+                    `,
+                  };
+                  await transporter.sendMail(mailOptions);
+                  emailSent = true;
+            }
+          }
+          
+          if (emailSent) {
+            await Campaign.updateOne(
+              { _id: item._id },
+              {
+                $set: {
+                  "recipients.$[].updatedAt": TomorrowDate, // Update all recipients' updatedAt
+                },
+              }
+            );
+            console.log(`Updated recipients' updatedAt for campaign ${item._id}`);
+          }
+
+        }
+      }
+    }
+  
+  } catch (error) {
+    console.error("Error checking emails:", error);
+  }
+};
+
+setInterval(checkEmails, 5 * 60 * 1000);
+// 1 day
+setInterval(checkForFollowUps, 24 * 60 * 60 * 1000);
 module.exports = {
   createCampaign,
   getAllCampaigns,

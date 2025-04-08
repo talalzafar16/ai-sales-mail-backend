@@ -1,13 +1,14 @@
-const automatedReplyEmail = require("../models/automatedReplyEmail");
+const FollowUpEmail = require("../models/FollowUpEmail");
 const Campaign = require("../models/compaign");
 
-const enableAutomatedReply = async (req, res) => {
+const enableFollowUp = async (req, res) => {
   try {
     const {
       campaignId,
       emailTemplateBody,
       emailTemplateSubject,
       emailTemplateClosing,
+      followUpDuration
     } = req.body;
 
     if (
@@ -20,20 +21,21 @@ const enableAutomatedReply = async (req, res) => {
         .status(400)
         .json({ message: "All required fields must be provided" });
     }
-    const automation = new automatedReplyEmail({
+    const followUp = new FollowUpEmail({
       campaignId,
       emailTemplateBody,
       emailTemplateSubject,
       emailTemplateClosing,
     });
     const campaign = await Campaign.findByIdAndUpdate(campaignId, {
-      isAutomatedReply: true,
+      hasFollowUp: true,
+      followUpDuration:followUpDuration
     });
 
-    await automation.save();
+    await followUp.save();
     res.status(201).json({
       message: "Reply Automation Setted successfully",
-      automation: automation,
+      automation: followUp,
     });
   } catch (error) {
     res
@@ -41,7 +43,7 @@ const enableAutomatedReply = async (req, res) => {
       .json({ message: "Error creating campaign", error: error.message });
   }
 };
-const removeAutomatedReply = async (req, res) => {
+const removeFollowUp = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -50,15 +52,16 @@ const removeAutomatedReply = async (req, res) => {
         .status(400)
         .json({ message: "All required fields must be provided" });
     }
-    const automation = await automatedReplyEmail.findOneAndDelete({
+    const followUp = await FollowUpEmail.findOneAndDelete({
       campaignId: id,
     });
     const campaign = await Campaign.findByIdAndUpdate(id, {
-      isAutomatedReply: false,
+      hasFollowUp: false,
+      followUpDuration:null
     });
     res.status(201).json({
       message: "Reply Automation Removed successfully",
-      automation: automation,
+      automation: followUp,
     });
   } catch (error) {
     console.log(error);
@@ -68,11 +71,11 @@ const removeAutomatedReply = async (req, res) => {
   }
 };
 
-const getAutomationByCompaignId = async (req, res) => {
+const getFollowUpByCompaignId = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const campaign = await automatedReplyEmail.find({ campaignId: id });
+    const campaign = await FollowUpEmail.find({ campaignId: id });
     if (!campaign) {
       return res.status(404).json({ message: "Campaign not found" });
     }
@@ -84,12 +87,19 @@ const getAutomationByCompaignId = async (req, res) => {
       .json({ message: "Error fetching campaign", error: error.message });
   }
 };
-const updateAutomatedReply = async (req, res) => {
+const updateFollowUp = async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    console.log(data);
-    const campaign = await automatedReplyEmail.findOneAndUpdate(
+if(data.followUpDuration){
+await Campaign.findOneAndUpdate(
+    {
+      _id: id,
+    },
+    {followUpDuration:data.followUpDuration}
+  );
+}
+    const campaign = await FollowUpEmail.findOneAndUpdate(
       {
         campaignId: id,
       },
@@ -109,8 +119,8 @@ const updateAutomatedReply = async (req, res) => {
 };
 
 module.exports = {
-  enableAutomatedReply,
-  removeAutomatedReply,
-  getAutomationByCompaignId,
-  updateAutomatedReply,
+  enableFollowUp,
+  removeFollowUp,
+  getFollowUpByCompaignId,
+  updateFollowUp,
 };
