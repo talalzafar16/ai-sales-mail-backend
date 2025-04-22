@@ -62,7 +62,7 @@ const GenerateEmail = async (req, res) => {
               5. **A professional closing**
             - ${placeholdersString}
 
-
+  **Keeo the email formatting proper**
  **Do not use line spaces or breaks; instead, use \n\n for formatting.**  
 
             ### **Expected Output Format (JSON Only)**  
@@ -121,7 +121,7 @@ const GenerateAutomatedEmail = async (req, res) => {
        Email Subject  : ${compaignData.emailTemplateSubject}
        Email Body  : ${compaignData.emailTemplateBody}
        Email Closing  : ${compaignData.emailTemplateClosing}
-    This is the template to which we reciewv the email reply from client now we want a general automated reply for customer email
+    This is the template to which we recieve the email reply from client now we want a general automated reply for customer email
 
           use place holders only used in above give email tenplate 
     - **Use \\n\\n instead of line breaks for formatting.**  
@@ -250,7 +250,7 @@ const MakeChangesToEmail = async (req, res) => {
             "${promptTochange}"
             
             ### **Guidelines:**
-            - Apply the requested changes while ensuring the email remains **professional, engaging, and aligned with its purpose**.
+            - Apply the requested changes while ensuring the email remains **professional, engaging, well formatted, and aligned with its purpose**.
             - Keep the tone **consistent** with the original intent (formal/casual).
             - Maintain the **structure**:  
               1. **Strong subject line**  
@@ -259,9 +259,11 @@ const MakeChangesToEmail = async (req, res) => {
               4. **Call to action**  
               5. **Professional closing**  
             - Ensure the final output **flows naturally** and improves readability.
-             **Do not use line spaces or breaks; instead, use \n\n for formatting.**  
-
-            ### **Output Format (JSON Only)**
+            
+          use place holders only used in above give email tenplate 
+    - **Use \\n\\n instead of line breaks for formatting.**  
+ 
+             ### **Output Format (JSON Only)**
          Return **ONLY** a valid JSON object (no code block, no additional text):
             \`\`\`json
             {
